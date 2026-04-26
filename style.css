@@ -1,0 +1,451 @@
+#cinematicBg{
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 22% 18%, rgba(26, 28, 56, 0.5), transparent 36%),
+    radial-gradient(circle at 76% 72%, rgba(20, 30, 60, 0.42), transparent 42%),
+    linear-gradient(180deg, #02030b, #030613 45%, #020206 100%);
+}
+
+.cinematic-stars,
+.cinematic-meteors{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+.cinematic-star{
+  position:absolute;
+  border-radius:999px;
+  background: #fff;
+  box-shadow: 0 0 10px rgba(255,255,255,.4);
+  opacity:.6;
+  animation: cStarPulse 2.8s ease-in-out infinite alternate;
+}
+
+@keyframes cStarPulse{
+  from{ opacity:.25; transform:scale(.8); }
+  to{ opacity:.95; transform:scale(1.15); }
+}
+
+.cinematic-meteor{
+  position:absolute;
+  height:2px;
+  width:140px;
+  transform: rotate(-25deg);
+  background: linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,0));
+  opacity:.7;
+  animation: cShoot 3.5s linear infinite;
+}
+
+@keyframes cShoot{
+  0% { transform: translateX(0) translateY(0) rotate(-25deg); opacity:1; }
+  100% { transform: translateX(-120vw) translateY(60vh) rotate(-25deg); opacity:0; }
+}
+
+.cinematic-content{
+  position:absolute;
+  left:50%;
+  top:18%;
+  transform: translateX(-50%);
+  width:min(88vw, 540px);
+  text-align:center;
+  color:#fff;
+  z-index:2;
+  pointer-events:auto;
+}
+
+.cinematic-content h1{
+  margin:0;
+  font-weight:300;
+  line-height:1.5;
+  font-size: clamp(1.35rem, 5.8vw, 2.3rem);
+  text-shadow: 0 0 16px rgba(255,180,230,.25);
+}
+
+.cinematic-content p{
+  margin:12px 0 0;
+  color: rgba(230,235,255,.82);
+  font-size: clamp(.9rem, 3.8vw, 1.06rem);
+}
+
+.cinematic-buttons{
+  margin-top:22px;
+  display:flex;
+  justify-content:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.cinematic-buttons button{
+  pointer-events:auto;
+  border:0;
+  color:#fff;
+  cursor:pointer;
+  padding:10px 18px;
+  border-radius:999px;
+  background: rgba(255,255,255,.12);
+  transition: .25s ease;
+}
+.cinematic-buttons button:hover{ transform: translateY(-1px) scale(1.03); }
+.cinematic-buttons .primary{ background: #ec4899; }
+.cinematic-buttons .danger{ background: linear-gradient(90deg, #ec4899, #ef4444); }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #000006;
+  color: #ffeef9;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+#meteorCanvas,
+#webgl,
+#fireworkPhotoLayer,
+#vignette,
+#flash,
+#textParticles,
+.overlay {
+  position: fixed;
+  inset: 0;
+}
+
+#meteorCanvas { z-index: 6; pointer-events: none; display:block; }
+#webgl { z-index: 3; }
+#fireworkPhotoLayer{ z-index: 24; pointer-events:none; overflow:hidden; }
+#textParticles{ z-index: 26; pointer-events:none; }
+#introHeart{
+  position: fixed;
+  left: 50%;
+  top: 52%;
+  transform: translate(-50%, -50%) scale(0.2);
+  z-index: 29;
+  pointer-events: none;
+  opacity: 0;
+  color: #ff5fb7;
+  font-size: min(42vw, 240px);
+  line-height: 1;
+  text-shadow:
+    0 0 16px rgba(255, 126, 201, 0.95),
+    0 0 34px rgba(255, 88, 175, 0.78),
+    0 0 58px rgba(255, 76, 166, 0.55);
+}
+
+.fw-photo-card{
+  position:absolute;
+  width: min(28vw, 132px);
+  aspect-ratio: 3 / 4;
+  border: 2px solid rgba(255, 223, 168, 0.96);
+  box-shadow:
+    0 0 18px rgba(255, 201, 120, 0.85),
+    inset 0 0 14px rgba(255, 233, 188, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+  transform-origin: 50% 50%;
+  background: transparent;
+}
+
+.fw-photo-card img{
+  width: 100%;
+  height: 100%;
+  display:block;
+  object-fit: cover;
+  background: transparent;
+  filter: saturate(1.04) contrast(1.05) brightness(1.03);
+}
+
+.final-orbit-ring{
+  position:absolute;
+  left:50%;
+  top:45%;
+  width:min(82vw, 430px);
+  height:min(66vw, 360px);
+  transform: translate(-50%, -50%);
+  pointer-events:none;
+}
+
+.fw-final-orbit-card{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:min(14vw, 72px);
+  aspect-ratio: 3 / 4;
+  border: 3px solid rgba(246, 236, 255, 0.95);
+  box-shadow:
+    0 0 16px rgba(255, 117, 210, 0.52),
+    0 0 28px rgba(255, 90, 192, 0.35);
+  border-radius: 16px;
+  overflow:hidden;
+  background: rgba(10, 8, 18, 0.48);
+  transform-origin: 50% 50%;
+}
+
+.fw-final-orbit-card img{
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit: cover;
+}
+
+#vignette {
+  z-index: 5;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 42%, transparent 38%, rgba(0, 0, 0, 0.34) 80%),
+    linear-gradient(180deg, rgba(40, 14, 70, 0.08), rgba(0, 0, 0, 0.22));
+}
+
+#flash {
+  z-index: 30;
+  opacity: 0;
+  background: #ffddee;
+  pointer-events: none;
+}
+
+.overlay{ z-index:20; pointer-events:none; }
+
+.stars-container{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:.55;
+  mix-blend-mode:screen;
+}
+
+.stars-container::before,
+.stars-container::after{
+  content:"";
+  position:absolute;
+  inset:-8%;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(255,255,255,.9), transparent 60%),
+    radial-gradient(1px 1px at 22% 72%, rgba(255,210,244,.85), transparent 60%),
+    radial-gradient(1.2px 1.2px at 38% 44%, rgba(210,224,255,.85), transparent 60%),
+    radial-gradient(1px 1px at 57% 22%, rgba(255,240,250,.8), transparent 60%),
+    radial-gradient(1.4px 1.4px at 76% 35%, rgba(255,227,248,.9), transparent 60%),
+    radial-gradient(1px 1px at 84% 74%, rgba(227,238,255,.85), transparent 60%),
+    radial-gradient(1.2px 1.2px at 66% 86%, rgba(255,239,250,.85), transparent 60%);
+  animation: twinkle 4.8s ease-in-out infinite alternate;
+}
+.stars-container::after{
+  opacity:.55;
+  filter: blur(.4px);
+  animation-duration: 6.2s;
+}
+
+@keyframes twinkle{
+  from{opacity:.35; transform:translateY(-.4vh)}
+  to{opacity:.85; transform:translateY(.6vh)}
+}
+
+.card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(88vw, 480px);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45), inset 0 0 30px rgba(255, 165, 229, 0.1);
+  text-align: center;
+  padding: 24px 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.35rem, 6.7vw, 2rem);
+  letter-spacing: 0.1em;
+  text-shadow: 0 0 20px rgba(255, 173, 228, 0.6);
+}
+
+.sub {
+  margin: 12px 0 0;
+  line-height: 1.8;
+  font-size: clamp(0.92rem, 4vw, 1.08rem);
+  color: rgba(255, 230, 245, 0.85);
+}
+
+.hint {
+  margin: 16px 0 0;
+  font-size: 0.86rem;
+  letter-spacing: 0.1em;
+  color: rgba(255, 219, 240, 0.72);
+}
+
+#memoryUI {
+  position: absolute;
+  left: 50%;
+  bottom: max(5.6vh, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  text-align: center;
+  width: min(90vw, 420px);
+}
+
+#memoryText {
+  margin: 0;
+  font-size: clamp(1.02rem, 4.6vw, 1.3rem);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 16px rgba(255, 172, 233, 0.56);
+}
+
+#memoryPage {
+  margin: 8px 0 0;
+  font-size: 0.86rem;
+  color: rgba(255, 231, 246, 0.76);
+}
+
+#finalText {
+  position: absolute;
+  left: 50%;
+  bottom: 14vh;
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: clamp(1.1rem, 5vw, 1.48rem);
+  width: min(90vw, 500px);
+  text-shadow: 0 0 16px rgba(255, 181, 237, 0.6);
+}
+
+#bookContainer{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform: translate(-50%,-50%);
+  width:min(82vw,340px);
+  height:min(58vh,460px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+}
+
+/* 3D 书本改为 WebGL 渲染：隐藏旧 DOM 书本层 */
+#bookContainer{ display:none; }
+
+.book{
+  position:relative;
+  width:100%;
+  height:100%;
+  perspective: 1400px;
+  transform-style:preserve-3d;
+}
+
+.book-surface{
+  position:absolute;
+  inset:0;
+  border-radius:18px;
+  background: rgba(10,6,18,.58);
+  border:1px solid rgba(255,215,245,.14);
+  box-shadow: 0 16px 46px rgba(0,0,0,.55), 0 0 28px rgba(255,164,229,.12);
+}
+
+.book-spine{
+  position:absolute;
+  left:50%;
+  top:7%;
+  transform:translateX(-50%);
+  width:2px;
+  height:86%;
+  background: linear-gradient(180deg, rgba(255,214,243,.85), rgba(255,214,243,.12));
+  box-shadow: 0 0 14px rgba(255,183,238,.55);
+}
+
+.page{
+  position:absolute;
+  top:6%;
+  left:50%;
+  width:49%;
+  height:88%;
+  transform-style:preserve-3d;
+  transform-origin:left center;
+  border-radius:0 18px 18px 0;
+  overflow:hidden;
+  box-shadow: 0 16px 42px rgba(0,0,0,.45);
+}
+
+.page.static-left{
+  left:1.8%;
+  width:48.2%;
+  transform-origin:right center;
+  border-radius:18px 0 0 18px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.04), 0 14px 34px rgba(0,0,0,.4);
+}
+
+.page.static-left .front,
+.page.static-left .back{
+  border-radius:18px 0 0 18px;
+}
+
+.page.static-right{
+  left:50%;
+  width:48.2%;
+}
+
+.page.flip{
+  left:50%;
+  width:48.2%;
+  z-index: 10;
+}
+
+.page .front,
+.page .back{
+  position:absolute;
+  inset:0;
+  backface-visibility:hidden;
+  border-radius:0 18px 18px 0;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.18);
+  background: rgba(10,5,18,.8);
+}
+.page .back{ transform: rotateY(180deg); }
+
+.page img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  display:block;
+  background: rgba(10,5,18,.86);
+}
+
+/* 修正翻页背面“镜像”问题：抵消 rotateY(180deg) 的视觉左右翻转 */
+.page .back img{
+  transform: scaleX(-1);
+}
+
+.shine{
+  position:absolute;
+  inset:0;
+  background: linear-gradient(100deg,
+    rgba(255,255,255,.26),
+    rgba(255,255,255,0) 34%,
+    rgba(255,175,240,.22) 70%,
+    rgba(255,255,255,.08));
+  mix-blend-mode:screen;
+  opacity:.65;
+  transform: translateX(-18%);
+}
+
+.final-message{
+  position:absolute;
+  left:50%;
+  bottom:14vh;
+  transform:translateX(-50%);
+  width:min(90vw,520px);
+  text-align:center;
+  font-size: clamp(1.1rem, 5vw, 1.48rem);
+  letter-spacing:.08em;
+  color: #ff8fd1;
+  font-family: "Dancing Script", "ZCOOL KuaiLe", "PingFang SC", "Microsoft YaHei", sans-serif;
+  text-shadow: 0 0 16px rgba(255,126,206,.85), 0 0 28px rgba(255,82,186,.48);
+  pointer-events:none;
+}
+
+.hidden { opacity: 0; visibility: hidden; }
