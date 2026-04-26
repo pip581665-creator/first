@@ -28,6 +28,8 @@ const quotes = [
 const headlineText = "MY LOVE";
 
 const ui = {
+  entryGate: document.getElementById("entryGate"),
+  entryStartBtn: document.getElementById("entryStartBtn"),
   overlay: document.getElementById("overlay"),
   stars: document.getElementById("starsContainer"),
   bookContainer: document.getElementById("bookContainer"),
@@ -35,8 +37,64 @@ const ui = {
   finalMessage: document.getElementById("finalMessage"),
   flash: document.getElementById("flash"),
   fireworkPhotoLayer: document.getElementById("fireworkPhotoLayer"),
-  introHeart: document.getElementById("introHeart")
+  introHeart: document.getElementById("introHeart"),
+  bgmAudio: document.getElementById("bgmAudio"),
+  musicToggle: document.getElementById("musicToggle")
 };
+
+const bgmState = {
+  started: false,
+  enabled: true,
+  sources: [
+    "saga-of-endless-dawn.mp3"
+  ],
+  sourceIndex: 0
+};
+let gatePassed = false;
+let appBooted = false;
+
+function passEntryGate(playMusic) {
+  gatePassed = true;
+  bgmState.enabled = !!playMusic;
+  updateMusicButton();
+  if (ui.entryGate) ui.entryGate.classList.add("hidden");
+  if (ui.musicToggle) ui.musicToggle.classList.remove("hidden");
+  if (!appBooted) {
+    appBooted = true;
+    boot();
+  }
+  if (playMusic) startBgmIfAllowed();
+}
+
+function updateMusicButton() {
+  if (!ui.musicToggle) return;
+  ui.musicToggle.textContent = bgmState.enabled ? "♪ ON" : "♪ OFF";
+}
+
+function ensureBgmSource() {
+  if (!ui.bgmAudio) return;
+  if (ui.bgmAudio.src) return;
+  ui.bgmAudio.src = bgmState.sources[bgmState.sourceIndex];
+}
+
+function startBgmIfAllowed() {
+  if (!ui.bgmAudio || !bgmState.enabled) return;
+  ensureBgmSource();
+  ui.bgmAudio.volume = 0.38;
+  ui.bgmAudio.play().then(() => {
+    bgmState.started = true;
+  }).catch(() => {
+    // 忽略自动播放拦截，等待下一次用户手势
+  });
+}
+
+function tryNextBgmSource() {
+  if (!ui.bgmAudio) return;
+  if (bgmState.sourceIndex >= bgmState.sources.length - 1) return;
+  bgmState.sourceIndex += 1;
+  ui.bgmAudio.src = bgmState.sources[bgmState.sourceIndex];
+  startBgmIfAllowed();
+}
 
 // ======= Cinematic Background (from provided React idea, vanilla rewrite) =======
 const cinematicScenes = [
@@ -146,6 +204,14 @@ const textFx = {
   targets: [],
   phrase: "",
   styleMode: "text", // "text" | "sparkHeart" | "countdown"
+  staticText: "",
+  staticAlpha: 0,
+  mosaicPoints: [],
+  mosaicAlpha: 0,
+  mosaicFill: "rgba(255, 118, 202, 1)",
+  mosaicCore: "rgba(255, 238, 248, 1)",
+  mosaicShadow: "rgba(255, 40, 156, 0.55)",
+  mosaicDotScale: 0.28,
   phase: "idle", // "gather" | "disperse"
   t: 0,
   w: 0,
@@ -188,25 +254,101 @@ function buildTextTargets(phrase) {
     }
   }
   const originX = (textFx.w - off.width) * 0.5;
-  const originY = Math.max(18, textFx.h * 0.08);
+  // 顶部文案下移到屏幕底部区域（匹配用户标注位置）
+  const originY = Math.max(18, textFx.h * 0.72);
   return pts.map((p) => ({
     x: originX + p.x,
     y: originY + p.y
   }));
 }
 
-function buildCountdownTargets(numText) {
+function buildCenterTextTargets(phrase) {
   const off = document.createElement("canvas");
-  off.width = Math.floor(textFx.w * 0.98);
-  off.height = Math.floor(textFx.h * 0.68);
+  off.width = Math.floor(textFx.w * 0.9);
+  off.height = 220;
   const c = off.getContext("2d");
   c.clearRect(0, 0, off.width, off.height);
   c.fillStyle = "#fff";
   c.textAlign = "center";
   c.textBaseline = "middle";
-  const fontSize = Math.max(170, Math.floor(Math.min(off.width, off.height) * 0.88));
-  c.font = `700 ${fontSize}px "Dancing Script","ZCOOL KuaiLe","PingFang SC","Microsoft YaHei",sans-serif`;
-  c.fillText(numText, off.width / 2, off.height / 2);
+  const fontSize = Math.max(52, Math.min(120, Math.floor(textFx.w * 0.22)));
+  c.font = `700 ${fontSize}px "ZCOOL KuaiLe","PingFang SC","Microsoft YaHei",sans-serif`;
+  c.fillText(phrase, off.width / 2, off.height / 2);
+
+  const img = c.getImageData(0, 0, off.width, off.height).data;
+  const pts = [];
+  const step = 3;
+  for (let y = 0; y < off.height; y += step) {
+    for (let x = 0; x < off.width; x += step) {
+      const a = img[(y * off.width + x) * 4 + 3];
+      if (a > 140) pts.push({ x, y });
+    }
+  }
+  const originX = (textFx.w - off.width) * 0.5;
+  const originY = Math.max(10, textFx.h * 0.46);
+  return pts.map((p) => ({ x: originX + p.x, y: originY + p.y }));
+}
+
+function setCenterParticleText(phrase) {
+  textFx.phrase = phrase;
+  textFx.styleMode = "text";
+  textFx.targets = buildCenterTextTargets(phrase);
+  const count = Math.min(980, Math.max(520, Math.floor(textFx.targets.length * 0.85)));
+  textFx.particles.length = 0;
+  for (let i = 0; i < count; i += 1) {
+    const t = textFx.targets[i % Math.max(1, textFx.targets.length)] || { x: textFx.w * 0.5, y: textFx.h * 0.5 };
+    textFx.particles.push({
+      x: t.x + (Math.random() - 0.5) * 10,
+      y: t.y + (Math.random() - 0.5) * 10,
+      vx: 0,
+      vy: 0,
+      a: 0.55 + Math.random() * 0.45,
+      r: 0.9 + Math.random() * 1.7
+    });
+  }
+  textFx.phase = "gather";
+  textFx.t = 0;
+}
+
+function hideParticleText() {
+  textFx.phase = "idle";
+  textFx.targets = [];
+  textFx.particles = [];
+  textFx.phrase = "";
+}
+
+function buildCountdownTargets(numText) {
+  const off = document.createElement("canvas");
+  off.width = Math.floor(textFx.w);
+  off.height = Math.floor(textFx.h);
+  const c = off.getContext("2d");
+  c.clearRect(0, 0, off.width, off.height);
+  c.fillStyle = "#fff";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  // 使用更稳定的数字字体，并按测量结果自适应到完整可见
+  const family = `"Arial Black","Montserrat","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif`;
+  let fontSize = Math.floor(Math.min(off.width, off.height) * 0.72);
+  fontSize = Math.max(120, fontSize);
+  c.font = `900 ${fontSize}px ${family}`;
+  let measured = c.measureText(numText);
+  const maxW = off.width * 0.84;
+  const maxH = off.height * 0.74;
+  if (measured.width > maxW) {
+    fontSize = Math.max(110, Math.floor(fontSize * (maxW / measured.width)));
+    c.font = `900 ${fontSize}px ${family}`;
+    measured = c.measureText(numText);
+  }
+  const textH = Math.max(1, (measured.actualBoundingBoxAscent || fontSize * 0.7) + (measured.actualBoundingBoxDescent || fontSize * 0.3));
+  if (textH > maxH) {
+    fontSize = Math.max(100, Math.floor(fontSize * (maxH / textH)));
+    c.font = `900 ${fontSize}px ${family}`;
+    measured = c.measureText(numText);
+  }
+  const asc = measured.actualBoundingBoxAscent || fontSize * 0.7;
+  const desc = measured.actualBoundingBoxDescent || fontSize * 0.3;
+  const drawY = off.height * 0.5 + (asc - desc) * 0.5 - fontSize * 0.02;
+  c.fillText(numText, off.width * 0.5, drawY);
 
   const img = c.getImageData(0, 0, off.width, off.height).data;
   const pts = [];
@@ -217,8 +359,8 @@ function buildCountdownTargets(numText) {
       if (a > 120) pts.push({ x, y });
     }
   }
-  const ox = (textFx.w - off.width) * 0.5;
-  const oy = (textFx.h - off.height) * 0.5;
+  const ox = 0;
+  const oy = 0;
   return pts.map((p) => ({ x: ox + p.x, y: oy + p.y }));
 }
 
@@ -347,15 +489,27 @@ function showIntroHeart() {
 
 function setBigCountdown(numText) {
   textFx.styleMode = "countdown";
-  textFx.targets = buildCountdownTargets(numText);
-  const desired = Math.max(1500, Math.min(2400, textFx.targets.length || 1800));
+  const rawTargets = buildCountdownTargets(numText);
+  const maxPoints = window.innerWidth < 430 ? 3400 : 4600;
+  let sampledTargets = rawTargets;
+  if (rawTargets.length > maxPoints) {
+    sampledTargets = [];
+    for (let i = 0; i < maxPoints; i += 1) {
+      const idx = Math.floor((i / maxPoints) * rawTargets.length);
+      sampledTargets.push(rawTargets[idx]);
+    }
+  }
+  textFx.targets = sampledTargets;
+  const desired = textFx.targets.length || 1800;
   if (textFx.particles.length === 0) {
     for (let i = 0; i < desired; i += 1) {
+      const t = textFx.targets[i % Math.max(1, textFx.targets.length)] || { x: textFx.w * 0.5, y: textFx.h * 0.5 };
       textFx.particles.push({
-        x: Math.random() * textFx.w,
-        y: Math.random() * textFx.h,
-        vx: (Math.random() - 0.5) * 0.25,
-        vy: (Math.random() - 0.5) * 0.25,
+        // 首次“3”直接原地成型，不跳出
+        x: t.x,
+        y: t.y,
+        vx: 0,
+        vy: 0,
         a: 0.35 + Math.random() * 0.65,
         r: 1.35 + Math.random() * 1.55
       });
@@ -379,12 +533,29 @@ function setBigCountdown(numText) {
       textFx.particles.length = desired;
     }
     textFx.particles.forEach((p) => {
-      p.vx *= 0.08;
-      p.vy *= 0.08;
+      p.vx *= 0.04;
+      p.vy *= 0.04;
     });
   }
   textFx.phase = "gather";
   textFx.t = 0;
+}
+
+function showStaticThreeFade() {
+  textFx.styleMode = "countdownStatic";
+  textFx.staticText = "3";
+  textFx.staticAlpha = 0;
+  textFx.phase = "idle";
+  textFx.targets = [];
+  textFx.particles = [];
+  gsap.killTweensOf(textFx);
+  gsap.to(textFx, {
+    staticAlpha: 1,
+    duration: 0.55,
+    ease: "sine.out",
+    yoyo: true,
+    repeat: 1
+  });
 }
 
 function playIntroHeartBeat() {
@@ -406,12 +577,132 @@ function playIntroHeartBeat() {
   });
 }
 
+function buildMosaicTextPoints(text, opts = {}) {
+  const off = document.createElement("canvas");
+  off.width = Math.floor(textFx.w);
+  off.height = Math.floor(textFx.h);
+  const c = off.getContext("2d");
+  c.clearRect(0, 0, off.width, off.height);
+  c.fillStyle = "#fff";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+
+  const family = opts.family || `"Arial Black","Montserrat","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif`;
+  let fontSize = opts.fontSize || Math.floor(Math.min(off.width, off.height) * 0.72);
+  fontSize = Math.max(120, fontSize);
+  c.font = `900 ${fontSize}px ${family}`;
+  let measured = c.measureText(text);
+  const maxW = off.width * 0.84;
+  const maxH = off.height * 0.74;
+  if (measured.width > maxW) {
+    fontSize = Math.max(100, Math.floor(fontSize * (maxW / measured.width)));
+    c.font = `900 ${fontSize}px ${family}`;
+    measured = c.measureText(text);
+  }
+  const textH = Math.max(1, (measured.actualBoundingBoxAscent || fontSize * 0.7) + (measured.actualBoundingBoxDescent || fontSize * 0.3));
+  if (textH > maxH) {
+    fontSize = Math.max(90, Math.floor(fontSize * (maxH / textH)));
+    c.font = `900 ${fontSize}px ${family}`;
+    measured = c.measureText(text);
+  }
+  const asc = measured.actualBoundingBoxAscent || fontSize * 0.7;
+  const desc = measured.actualBoundingBoxDescent || fontSize * 0.3;
+  const targetY = typeof opts.centerY === "number" ? opts.centerY : off.height * 0.5;
+  const drawY = targetY + (asc - desc) * 0.5 - fontSize * 0.02;
+  c.fillText(text, off.width * 0.5, drawY);
+
+  const img = c.getImageData(0, 0, off.width, off.height).data;
+  const pts = [];
+  const step = opts.step || Math.max(7, Math.floor(Math.min(off.width, off.height) / 70)); // 马赛克密度
+  for (let y = 0; y < off.height; y += step) {
+    for (let x = 0; x < off.width; x += step) {
+      const a = img[(y * off.width + x) * 4 + 3];
+      if (a > 110) pts.push({ x, y });
+    }
+  }
+  return { pts, step };
+}
+
+function showMosaicCountdown(numText, { fadeIn = 0.55, hold = 0.75, fadeOut = 0.55 } = {}) {
+  textFx.styleMode = "countdownMosaic";
+  const built = buildMosaicTextPoints(numText, {
+    family: `"Arial Black","Montserrat","Helvetica Neue",sans-serif`,
+    centerY: textFx.h * 0.5
+  });
+  textFx.mosaicPoints = built.pts;
+  textFx.mosaicStep = built.step;
+  textFx.mosaicAlpha = 0;
+  textFx.mosaicFill = "rgba(255, 118, 202, 1)";
+  textFx.mosaicCore = "rgba(255, 238, 248, 1)";
+  textFx.mosaicShadow = "rgba(255, 40, 156, 0.55)";
+  textFx.mosaicDotScale = 0.28;
+  textFx.phase = "idle";
+  textFx.targets = [];
+  textFx.particles = [];
+  gsap.killTweensOf(textFx);
+  gsap.to(textFx, { mosaicAlpha: 1, duration: fadeIn, ease: "sine.out" });
+  gsap.to(textFx, { mosaicAlpha: 0, delay: fadeIn + hold, duration: fadeOut, ease: "sine.inOut" });
+}
+
+function showMosaicName(text) {
+  // 名字位置：底部英文句子上方（finalMessage 在 bottom:14vh）
+  const centerY = textFx.h * 0.80;
+  textFx.styleMode = "countdownMosaic";
+  const built = buildMosaicTextPoints(text, {
+    family: `"Microsoft YaHei","PingFang SC","Helvetica Neue",sans-serif`,
+    fontSize: Math.max(68, Math.floor(Math.min(textFx.w, textFx.h) * 0.15)),
+    centerY,
+    step: 5
+  });
+  textFx.mosaicPoints = built.pts;
+  textFx.mosaicStep = built.step;
+  textFx.mosaicAlpha = 0;
+  textFx.mosaicFill = "rgba(255, 118, 202, 1)";
+  textFx.mosaicCore = "rgba(255, 238, 248, 1)";
+  textFx.mosaicShadow = "rgba(255, 40, 156, 0.55)";
+  textFx.mosaicDotScale = 0.22;
+  textFx.phase = "idle";
+  textFx.targets = [];
+  textFx.particles = [];
+  gsap.killTweensOf(textFx);
+  gsap.to(textFx, { mosaicAlpha: 1, duration: 0.8, ease: "sine.out" });
+}
+
 function drawParticleText(dt) {
   textFx.t += dt;
   textCtx.clearRect(0, 0, textFx.w, textFx.h);
 
   // 更清晰：避免过度叠加导致糊成一条
   textCtx.globalCompositeOperation = "source-over";
+
+  if (textFx.styleMode === "countdownMosaic") {
+    const a = Math.max(0, Math.min(1, textFx.mosaicAlpha));
+    if (a <= 0.001) return;
+    const pts = textFx.mosaicPoints || [];
+    const r = Math.max(1.4, (textFx.mosaicStep || 8) * (textFx.mosaicDotScale || 0.28));
+    const fillBase = textFx.mosaicFill || "rgba(255, 118, 202, 1)";
+    const coreBase = textFx.mosaicCore || "rgba(255, 238, 248, 1)";
+    // 把 rgba(...,1) 安全替换成 rgba(...,a)，避免使用正则导致解析失败
+    const fillColor = fillBase.startsWith("rgba(") ? fillBase.replace("1)", `${a})`) : `rgba(255, 118, 202, ${a})`;
+    const coreAlpha = Math.min(1, a * 0.72);
+    const coreColor = coreBase.startsWith("rgba(") ? coreBase.replace("1)", `${coreAlpha})`) : `rgba(255, 238, 248, ${coreAlpha})`;
+    textCtx.save();
+    textCtx.shadowBlur = 8;
+    textCtx.shadowColor = textFx.mosaicShadow || "rgba(255, 40, 156, 0.55)";
+    for (let i = 0; i < pts.length; i += 1) {
+      const p = pts[i];
+      textCtx.beginPath();
+      textCtx.fillStyle = fillColor;
+      textCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      textCtx.fill();
+      textCtx.beginPath();
+      textCtx.fillStyle = coreColor;
+      textCtx.arc(p.x, p.y, Math.max(0.8, r * 0.44), 0, Math.PI * 2);
+      textCtx.fill();
+    }
+    textCtx.restore();
+    return;
+  }
 
   const countdownMode = textFx.styleMode === "countdown";
   if (countdownMode) {
@@ -426,8 +717,8 @@ function drawParticleText(dt) {
       for (let x = gap * 0.6; x < textFx.w; x += gap) {
         const idx = (Math.floor((x + y) / gap) + Math.floor(textFx.t * 2.3)) % chars.length;
         const ch = chars[idx];
-        const hi = ((x * 0.013 + y * 0.017 + textFx.t * 1.8) % 1) > 0.83;
-        textCtx.fillStyle = hi ? "rgba(255, 52, 162, 0.82)" : "rgba(255, 70, 180, 0.26)";
+        const hi = ((x * 0.013 + y * 0.017 + textFx.t * 1.8) % 1) > 0.86;
+        textCtx.fillStyle = hi ? "rgba(255, 52, 162, 0.58)" : "rgba(255, 70, 180, 0.16)";
         textCtx.fillText(ch, x, y);
       }
     }
@@ -436,8 +727,8 @@ function drawParticleText(dt) {
 
   const targets = textFx.targets;
   const gather = textFx.phase === "gather";
-  const k = countdownMode ? 0.22 : (gather ? 0.09 : 0.012);
-  const damp = countdownMode ? 0.72 : (gather ? 0.84 : 0.92);
+  const k = countdownMode ? 0.068 : (gather ? 0.09 : 0.012);
+  const damp = countdownMode ? 0.9 : (gather ? 0.84 : 0.92);
 
   for (let i = 0; i < textFx.particles.length; i += 1) {
     const p = textFx.particles[i];
@@ -484,11 +775,15 @@ function drawParticleText(dt) {
       textCtx.fill();
     } else if (countdownMode) {
       textCtx.save();
-      textCtx.shadowBlur = 14;
-      textCtx.shadowColor = "rgba(255,40,156,0.95)";
+      textCtx.shadowBlur = 5;
+      textCtx.shadowColor = "rgba(255,40,156,0.55)";
       textCtx.beginPath();
-      textCtx.fillStyle = `rgba(255, 118, 202, ${Math.min(1, 0.74 + p.a * 0.26)})`;
+      textCtx.fillStyle = `rgba(255, 118, 202, ${Math.min(1, 0.82 + p.a * 0.18)})`;
       textCtx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      textCtx.fill();
+      textCtx.beginPath();
+      textCtx.fillStyle = `rgba(255, 238, 248, ${Math.min(1, 0.42 + p.a * 0.28)})`;
+      textCtx.arc(p.x, p.y, Math.max(0.8, r * 0.44), 0, Math.PI * 2);
       textCtx.fill();
       textCtx.restore();
     } else {
@@ -2050,22 +2345,65 @@ function setupFinalPhotoOrbit() {
   ui.fireworkPhotoLayer.appendChild(ring);
   finalOrbitRingEl = ring;
 
-  const count = window.innerWidth < 430 ? 24 : 32;
-  const size = window.innerWidth < 430 ? 8.7 : 10.5;
+  // 用更多卡片围成“空心爱心”，可重复图片补足
+  const count = window.innerWidth < 430 ? 40 : 54;
+  // 与 CSS .final-orbit-ring 同步：width=min(86vw,430px), height=min(74vw,380px)
+  const ringW = Math.min(window.innerWidth * 0.86, 430);
+  const ringH = Math.min(window.innerWidth * 0.74, 380);
+  // 与 CSS .fw-final-orbit-card 同步：width=min(12vw,62px)
+  const cardW = Math.min(window.innerWidth * 0.12, 62);
+  const cardH = cardW * (4 / 3);
+  const limitX = Math.max(24, ringW * 0.5 - cardW * 0.56 - 8);
+  const limitY = Math.max(20, ringH * 0.5 - cardH * 0.56 - 8);
   const heartTargets = [];
   for (let i = 0; i < count; i += 1) {
     const t = (i / count) * Math.PI * 2;
     const x = 16 * Math.pow(Math.sin(t), 3);
     const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
     heartTargets.push({
-      x: x * size,
-      y: -y * size * 0.92
+      x,
+      y: -y * 0.92
     });
   }
 
+  // 等比缩放到容器内（保持心形轮廓，不逐点钳制挤变形）
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  heartTargets.forEach((p) => {
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y);
+  });
+  const spanX = Math.max(0.001, maxX - minX);
+  const spanY = Math.max(0.001, maxY - minY);
+  const sx = (limitX * 2) / spanX;
+  const sy = (limitY * 2) / spanY;
+  // 放大一点让手机上更“铺满”
+  const scale = Math.min(sx, sy) * (window.innerWidth < 430 ? 1.04 : 1.0);
+  const centerX = (minX + maxX) * 0.5;
+  const centerY = (minY + maxY) * 0.5;
+  heartTargets.forEach((p) => {
+    p.x = (p.x - centerX) * scale;
+    p.y = (p.y - centerY) * scale;
+  });
+
+  // 留出中心空洞（名字区域），把点向外推
+  const hole = Math.min(limitX, limitY) * 0.48;
+  heartTargets.forEach((p) => {
+    const d = Math.hypot(p.x, p.y);
+    if (d < hole) {
+      const k = hole / Math.max(0.001, d);
+      p.x *= k;
+      p.y *= k;
+    }
+  });
+
   for (let i = 0; i < count; i += 1) {
     const p = heartTargets[i];
-    const jitter = window.innerWidth < 430 ? 5 : 7;
+    const jitter = window.innerWidth < 430 ? 4 : 6;
     const x = p.x + (Math.random() - 0.5) * jitter;
     const y = p.y + (Math.random() - 0.5) * jitter;
     const card = document.createElement("div");
@@ -2078,9 +2416,10 @@ function setupFinalPhotoOrbit() {
     gsap.set(card, {
       xPercent: -50,
       yPercent: -50,
-      x: x + (Math.random() - 0.5) * 34,
-      y: y + (Math.random() - 0.5) * 28,
-      rotate: (Math.random() - 0.5) * 16,
+      // 入场从“稍外侧”滑回轮廓，避免堆成一团
+      x: x * 1.15 + (Math.random() - 0.5) * 10,
+      y: y * 1.15 + (Math.random() - 0.5) * 10,
+      rotate: (Math.random() - 0.5) * 10,
       zIndex: 10 + (i % 7),
       opacity: 0,
       scale: 0.68
@@ -2090,8 +2429,8 @@ function setupFinalPhotoOrbit() {
       scale: 1,
       x,
       y,
-      duration: 1.9,
-      delay: 0.34 + i * 0.055,
+      duration: 2.35,
+      delay: 0.25 + i * 0.035,
       ease: "sine.out"
     });
     gsap.to(card, {
@@ -2582,7 +2921,8 @@ function buildNameTargets(text, count) {
         const px = (x - c.width * 0.5) / c.width;
         const py = (c.height * 0.5 - y) / c.height;
         // 压缩 Z 轴厚度，让名字更“平面清晰”
-        pts.push({ x: px * 2.1, y: py * 1.18, z: (Math.random() - 0.5) * 0.04 });
+        // 往上抬一点，让名字进到照片爱心中间
+        pts.push({ x: px * 1.75, y: (py * 1.02) + 0.28, z: (Math.random() - 0.5) * 0.04 });
       }
     }
   }
@@ -2670,19 +3010,13 @@ function startEnding() {
     if (i > line.length) clearInterval(timer);
   }, 130);
 
-  // 让粒子在结尾重组成她的名字
-  heartPoints.visible = true;
-  heartPoints.material.opacity = 0.92;
-  gsap.killTweensOf(heartPoints.scale);
-  gsap.killTweensOf(heartPoints.rotation);
-  heartPoints.scale.set(1, 1, 1);
-  gsap.to(heartPoints.scale, { x: 1.05, y: 1.05, z: 1.05, duration: 1.1, repeat: -1, yoyo: true, ease: "sine.inOut" });
-  // 旋转在名字成型后再启动，避免“糊字”
-  setTimeout(() => morphHeartToName("清清"), 700);
-  setTimeout(() => setupFinalPhotoOrbit(), 1200);
+  // 结尾名字改为 Canvas 粒子字（位于照片之上，不被遮挡）
+  if (heartPoints) heartPoints.visible = false;
+  hideParticleText(); // 避免底部 MY LOVE 与结尾文案重叠
+  showMosaicName("清清");
+  setTimeout(() => setupFinalPhotoOrbit(), 700);
 
   gsap.to(camera.position, { z: 4.2, duration: 4, ease: "power2.inOut" });
-  gsap.to(heartPoints.material, { opacity: 0.22, duration: 4.5, delay: 1.2 });
   gsap.to("#vignette", { opacity: 0.6, duration: 3.2 });
   gsap.to(ui.flash, { opacity: 0.12, duration: 3.4, delay: 3.5 });
   gsap.to("body", { backgroundColor: "#000", duration: 4.6, delay: 3.8 });
@@ -2701,20 +3035,27 @@ function onPrev() {
 }
 
 window.addEventListener("wheel", (e) => {
+  if (!gatePassed) return;
+  startBgmIfAllowed();
   if (Math.abs(e.deltaY) < 12) return;
   if (e.deltaY > 0) onNext();
   else onPrev();
 }, { passive: true });
 
 window.addEventListener("click", () => {
+  if (!gatePassed) return;
+  startBgmIfAllowed();
   if (app.phase === "intro") onNext();
 }, { passive: true });
 
 window.addEventListener("touchstart", (e) => {
+  if (!gatePassed) return;
+  startBgmIfAllowed();
   app.touchY = e.touches[0].clientY;
 }, { passive: true });
 
 window.addEventListener("touchend", (e) => {
+  if (!gatePassed) return;
   const dy = app.touchY - e.changedTouches[0].clientY;
   if (Math.abs(dy) < 22) return;
   if (dy > 0) onNext();
@@ -2784,6 +3125,25 @@ function animate() {
 
 function boot() {
   initCinematicBackground();
+  updateMusicButton();
+  if (ui.musicToggle) ui.musicToggle.classList.add("hidden");
+  if (ui.bgmAudio) {
+    ui.bgmAudio.addEventListener("error", tryNextBgmSource);
+  }
+  if (ui.musicToggle) {
+    ui.musicToggle.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      bgmState.enabled = !bgmState.enabled;
+      updateMusicButton();
+      if (!ui.bgmAudio) return;
+      if (bgmState.enabled) {
+        startBgmIfAllowed();
+      } else {
+        ui.bgmAudio.pause();
+      }
+    });
+  }
   applyMobilePlanetLayout();
   onResize();
   resizeMeteorCanvas();
@@ -2796,9 +3156,9 @@ function boot() {
   textFx.particles = [];
   setTimeout(() => {
     if (app.phase !== "intro") return;
-    setBigCountdown("3");
-    setTimeout(() => { if (app.phase === "intro") setBigCountdown("2"); }, 1500);
-    setTimeout(() => { if (app.phase === "intro") setBigCountdown("1"); }, 3000);
+    showMosaicCountdown("3", { fadeIn: 0.55, hold: 0.9, fadeOut: 0.55 });
+    setTimeout(() => { if (app.phase === "intro") showMosaicCountdown("2", { fadeIn: 0.55, hold: 0.9, fadeOut: 0.55 }); }, 2000);
+    setTimeout(() => { if (app.phase === "intro") showMosaicCountdown("1", { fadeIn: 0.55, hold: 0.9, fadeOut: 0.55 }); }, 4000);
     setTimeout(() => {
       if (app.phase !== "intro") return;
       // 321 后展示粉色大爱心（强制高密度，确保可见）
@@ -2806,12 +3166,21 @@ function boot() {
       playIntroHeartBeat();
       // 轻微白闪仪式感
       gsap.to(ui.flash, { opacity: 0.35, duration: 0.14, yoyo: true, repeat: 1 });
-    }, 4600);
+    }, 6500);
     setTimeout(() => {
       if (app.phase === "intro") enterBookPhase();
-    }, 7000);
+    }, 8900);
   }, 700);
   animate();
 }
 
-boot();
+if (ui.entryStartBtn) {
+  if (ui.musicToggle) ui.musicToggle.classList.add("hidden");
+  ui.entryStartBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    passEntryGate(true);
+  }, { once: true });
+} else {
+  passEntryGate(true);
+}

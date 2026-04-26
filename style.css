@@ -9,6 +9,42 @@
     linear-gradient(180deg, #02030b, #030613 45%, #020206 100%);
 }
 
+.entry-gate{
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: rgba(0,0,0,0.0);
+}
+
+.entry-simple{
+  text-align:center;
+}
+
+.entry-line{
+  margin: 0 0 12px;
+  color: #ffd8ef;
+  font-family: "Dancing Script","ZCOOL KuaiLe","PingFang SC","Microsoft YaHei",sans-serif;
+  font-size: clamp(1.12rem, 5.2vw, 1.6rem);
+  text-shadow: 0 0 14px rgba(255, 94, 192, 0.35);
+}
+
+.entry-start-btn{
+  display:block;
+  margin-left:auto;
+  margin-right:auto;
+  margin-top: 6px;
+  border:0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  color:#fff;
+  background: linear-gradient(90deg, #ff4eb5, #ff7bc8);
+  box-shadow: 0 0 16px rgba(255, 94, 192, 0.45);
+  cursor: pointer;
+}
+
 .cinematic-stars,
 .cinematic-meteors{
   position:absolute;
@@ -120,6 +156,23 @@ html, body {
 #webgl { z-index: 3; }
 #fireworkPhotoLayer{ z-index: 24; pointer-events:none; overflow:hidden; }
 #textParticles{ z-index: 26; pointer-events:none; }
+#musicToggle{
+  position: fixed;
+  right: 12px;
+  top: max(12px, env(safe-area-inset-top));
+  z-index: 40;
+  border: 1px solid rgba(255, 193, 230, 0.65);
+  background: rgba(28, 12, 36, 0.55);
+  color: #ffd4ef;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 0 16px rgba(255, 115, 194, 0.3);
+  cursor: pointer;
+}
 #introHeart{
   position: fixed;
   left: 50%;
@@ -163,9 +216,9 @@ html, body {
 .final-orbit-ring{
   position:absolute;
   left:50%;
-  top:45%;
-  width:min(82vw, 430px);
-  height:min(66vw, 360px);
+  top:52%;
+  width:min(86vw, 430px);
+  height:min(74vw, 380px);
   transform: translate(-50%, -50%);
   pointer-events:none;
 }
@@ -174,7 +227,7 @@ html, body {
   position:absolute;
   left:50%;
   top:50%;
-  width:min(14vw, 72px);
+  width:min(12vw, 62px);
   aspect-ratio: 3 / 4;
   border: 3px solid rgba(246, 236, 255, 0.95);
   box-shadow:
@@ -436,7 +489,7 @@ html, body {
 .final-message{
   position:absolute;
   left:50%;
-  bottom:14vh;
+  bottom:7vh;
   transform:translateX(-50%);
   width:min(90vw,520px);
   text-align:center;
